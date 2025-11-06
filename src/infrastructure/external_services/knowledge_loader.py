@@ -1,5 +1,5 @@
 """
-Knowledge base loader service
+Knowledge base loader service with RAG functionality
 Clean Architecture - Frameworks & Drivers Layer
 """
 import re
@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 from src.core.config.settings import KNOWLEDGE_BASE_MAP, settings
 from src.core.exceptions.handlers import KnowledgeBaseNotFoundException
+from src.infrastructure.external_services.vector_db_service import vector_db_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,12 +15,13 @@ logger = logging.getLogger(__name__)
 
 class KnowledgeLoader:
     """
-    Knowledge base file loader and processor
-    Handles loading, compression, and chunking of knowledge base files
+    Knowledge base file loader and processor with RAG functionality
+    Handles loading, compression, chunking, and semantic search of knowledge base files
     """
 
     def __init__(self):
         self.base_path = Path(__file__).parent.parent.parent.parent
+        self.vector_db = vector_db_service
         logger.info(f"Knowledge loader initialized with base path: {self.base_path}")
 
     def load_knowledge_base(self, filename_or_template: str) -> str:
@@ -156,6 +158,159 @@ class KnowledgeLoader:
     def validate_template(self, template_id: str) -> bool:
         """Check if template has valid knowledge base mapping"""
         return template_id in KNOWLEDGE_BASE_MAP
+
+    def initialize_knowledge_base_vectors(self, template_id: str) -> bool:
+        """
+        Initialize knowledge base vectors in ChromaDB
+        
+        Args:
+            template_id: Template identifier
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Load the knowledge base content
+            content = self.load_knowledge_base(template_id)
+            
+            # Store in vector database
+            metadata = {
+                "template_id": template_id,
+                "source_file": KNOWLEDGE_BASE_MAP.get(template_id, f"{template_id}.md"),
+                "content_length": len(content)
+            }
+            
+            self.vector_db.store_knowledge_base(
+                knowledge_base_id=template_id,
+                content=content,
+                metadata=metadata
+            )
+            
+            logger.info(f"Successfully initialized vectors for knowledge base: {template_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize vectors for {template_id}: {e}")
+            return False
+
+    def get_relevant_context_rag(
+        self, 
+        template_id: str, 
+        query: str, 
+        max_tokens: int = 2000
+    ) -> str:
+        """
+        Get relevant context using RAG (Retrieval-Augmented Generation)
+        
+        Args:
+            template_id: Knowledge base template ID
+            query: User query or question
+            max_tokens: Maximum tokens in returned context
+            
+        Returns:
+            Relevant context from knowledge base
+        """
+        try:
+            # Ensure knowledge base is initialized in vector DB
+            if not self._is_knowledge_base_initialized(template_id):
+                logger.info(f"Initializing knowledge base vectors for {template_id}")
+                if not self.initialize_knowledge_base_vectors(template_id):
+                    logger.warning(f"Failed to initialize {template_id}, falling back to full content")
+                    return self._fallback_to_full_content(template_id, max_tokens)
+            
+            # Get relevant context using semantic search
+            context = self.vector_db.get_relevant_context(
+                knowledge_base_id=template_id,
+                query=query,
+                max_tokens=max_tokens
+            )
+            
+            if not context:
+                logger.warning(f"No relevant context found for query in {template_id}, falling back")
+                return self._fallback_to_full_content(template_id, max_tokens)
+            
+            logger.info(f"Retrieved RAG context for {template_id}: {len(context)} chars")
+            return context
+            
+        except Exception as e:
+            logger.error(f"Error in RAG context retrieval for {template_id}: {e}")
+            return self._fallback_to_full_content(template_id, max_tokens)
+
+    def _is_knowledge_base_initialized(self, template_id: str) -> bool:
+        """Check if knowledge base is already initialized in vector DB"""
+        try:
+            available_kbs = self.vector_db.list_knowledge_bases()
+            return template_id in available_kbs
+        except Exception as e:
+            logger.error(f"Error checking if {template_id} is initialized: {e}")
+            return False
+
+    def _fallback_to_full_content(self, template_id: str, max_tokens: int) -> str:
+        """Fallback to compressed full content when RAG fails"""
+        try:
+            content = self.load_knowledge_base(template_id)
+            
+            # Estimate max characters from tokens (rough: 1 token ≈ 4 chars)
+            max_chars = max_tokens * 4
+            
+            compressed = self.compress_knowledge(content, max_length=max_chars)
+            logger.info(f"Using fallback compressed content for {template_id}")
+            return compressed
+            
+        except Exception as e:
+            logger.error(f"Fallback failed for {template_id}: {e}")
+            return "Knowledge base content is temporarily unavailable."
+
+    def search_knowledge(
+        self, 
+        template_id: str, 
+        query: str, 
+        top_k: int = 5
+    ) -> List[dict]:
+        """
+        Search for relevant chunks in knowledge base
+        
+        Args:
+            template_id: Knowledge base template ID
+            query: Search query
+            top_k: Number of top results to return
+            
+        Returns:
+            List of relevant chunks with similarity scores
+        """
+        try:
+            if not self._is_knowledge_base_initialized(template_id):
+                if not self.initialize_knowledge_base_vectors(template_id):
+                    return []
+            
+            return self.vector_db.search_similar_chunks(
+                knowledge_base_id=template_id,
+                query=query,
+                top_k=top_k
+            )
+            
+        except Exception as e:
+            logger.error(f"Error searching knowledge base {template_id}: {e}")
+            return []
+
+    def reinitialize_all_knowledge_bases(self) -> dict:
+        """
+        Reinitialize all knowledge bases in vector database
+        
+        Returns:
+            Dictionary with initialization results
+        """
+        results = {}
+        
+        for template_id in self.get_available_templates():
+            try:
+                success = self.initialize_knowledge_base_vectors(template_id)
+                results[template_id] = "success" if success else "failed"
+            except Exception as e:
+                results[template_id] = f"error: {str(e)}"
+        
+        logger.info(f"Knowledge base initialization results: {results}")
+        return results
 
 
 # Singleton instance

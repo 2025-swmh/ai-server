@@ -43,10 +43,17 @@ class QuestionService:
         # Get template configuration
         template_config, template_id = QuestionService._get_template_config(session_id, db)
         
-        # Load and compress knowledge base for faster processing
-        knowledge_base_file = KNOWLEDGE_BASE_MAP.get(template_id, 'knowledge_base_project.md')
-        raw_knowledge = knowledge_loader.load_knowledge_base(knowledge_base_file)
-        knowledge_base = knowledge_loader.compress_knowledge(raw_knowledge)
+        # Load knowledge base using RAG for better context relevance
+        initial_query = f"면접 시작 {template_id} 질문 생성"
+        if scenario:
+            initial_query += f" 시나리오: {scenario}"
+        
+        # Get relevant context using RAG
+        knowledge_base = knowledge_loader.get_relevant_context_rag(
+            template_id=template_id,
+            query=initial_query,
+            max_tokens=1500  # More context for first question
+        )
         
         # Create system prompt
         if template_id == 'cooperation' and scenario:
@@ -121,10 +128,15 @@ class QuestionService:
         # Get template configuration
         template_config, template_id = QuestionService._get_template_config(session_id, db)
         
-        # Load and compress knowledge base for faster processing
-        knowledge_base_file = KNOWLEDGE_BASE_MAP.get(template_id, 'knowledge_base_project.md')
-        raw_knowledge = knowledge_loader.load_knowledge_base(knowledge_base_file)
-        knowledge_base = knowledge_loader.compress_knowledge(raw_knowledge)
+        # Load knowledge base using RAG with user's message as context
+        search_query = f"면접 질문 {template_id} {user_message}"
+        
+        # Get relevant context using RAG
+        knowledge_base = knowledge_loader.get_relevant_context_rag(
+            template_id=template_id,
+            query=search_query,
+            max_tokens=1200  # Appropriate context for response
+        )
         
         # Get conversation history
         history = conversation_service.get_conversation_history_as_dict(session_id, db)

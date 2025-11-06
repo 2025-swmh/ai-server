@@ -24,7 +24,7 @@ lazy_loader==0.4
 llvmlite==0.45.1
 msgpack==1.1.2
 numba==0.62.1
-numpy==2.2.6
+numpy<2.0.0
 packaging==25.0
 platformdirs==4.5.0
 pooch==1.8.2
@@ -41,3 +41,10 @@ urllib3==2.5.0
 uv==0.9.7
 sqlalchemy==2.0.36
 pymysql==1.1.1
+json-repair==0.52.4
+
+# RAG and Vector Database (simplified for multi-platform build)
+chromadb==0.5.20
+sentence-transformers==3.3.1
+tiktoken==0.8.0
+openai==1.57.4

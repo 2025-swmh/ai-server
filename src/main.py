@@ -88,7 +88,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",
+        host="192.168.12.146",
         port=8000,
         reload=settings.DEBUG,
         log_level="debug" if settings.DEBUG else "info"

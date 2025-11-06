@@ -27,6 +27,10 @@ class EvaluationService:
     @staticmethod
     def _save_evaluation(evaluation_data: Dict, db: Session) -> EvaluationModel:
         """Save evaluation result to database"""
+        # Extract individual fields from JSON data
+        collaboration_profile = evaluation_data.get("collaboration_profile", {})
+        analysis_scores = collaboration_profile.get("analysis_scores", {})
+        
         # Check if evaluation already exists
         existing = db.query(EvaluationModel).filter(
             EvaluationModel.session_id == evaluation_data["session_id"]
@@ -35,6 +39,11 @@ class EvaluationService:
         if existing:
             # Update existing evaluation
             existing.title = evaluation_data.get("title")
+            existing.interview_type = evaluation_data.get("template_type")
+            existing.type_korean = collaboration_profile.get("type_korean")
+            existing.type_english = collaboration_profile.get("type_english")
+            existing.score_relationship = analysis_scores.get("relationship_contribution")
+            existing.score_problem = analysis_scores.get("problem_leadership")
             existing.evaluation_json = json.dumps(evaluation_data, ensure_ascii=False)
             evaluation_obj = existing
         else:
@@ -43,6 +52,10 @@ class EvaluationService:
                 session_id=evaluation_data["session_id"],
                 title=evaluation_data.get("title"),
                 interview_type=evaluation_data.get("template_type", "cooperation"),
+                type_korean=collaboration_profile.get("type_korean"),
+                type_english=collaboration_profile.get("type_english"),
+                score_relationship=analysis_scores.get("relationship_contribution"),
+                score_problem=analysis_scores.get("problem_leadership"),
                 evaluation_json=json.dumps(evaluation_data, ensure_ascii=False)
             )
             db.add(evaluation_obj)
