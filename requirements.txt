@@ -1,3 +1,18 @@
+# FastAPI 및 서버
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Anthropic Claude API
+anthropic==0.39.0
+httpx<0.28.0
+
+# 환경 변수 관리
+python-dotenv==1.0.1
+
+# 데이터 검증
+pydantic==2.10.6
+
+# 기존 의존성 (오디오 처리 등)
 audioread==3.1.0
 certifi==2025.10.5
 cffi==2.0.0
@@ -24,8 +39,5 @@ threadpoolctl==3.6.0
 typing_extensions==4.15.0
 urllib3==2.5.0
 uv==0.9.7
-fastapi==0.115.5
-uvicorn==0.32.1
 sqlalchemy==2.0.36
 pymysql==1.1.1
-python-dotenv==1.0.1
