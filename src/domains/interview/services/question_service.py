@@ -43,9 +43,10 @@ class QuestionService:
         # Get template configuration
         template_config, template_id = QuestionService._get_template_config(session_id, db)
         
-        # Load knowledge base
+        # Load and compress knowledge base for faster processing
         knowledge_base_file = KNOWLEDGE_BASE_MAP.get(template_id, 'knowledge_base_project.md')
-        knowledge_base = knowledge_loader.load_knowledge_base(knowledge_base_file)
+        raw_knowledge = knowledge_loader.load_knowledge_base(knowledge_base_file)
+        knowledge_base = knowledge_loader.compress_knowledge(raw_knowledge)
         
         # Create system prompt
         if template_id == 'cooperation' and scenario:
@@ -88,12 +89,12 @@ class QuestionService:
             
             user_message = "면접을 시작하겠습니다. 인사와 함께 첫 질문을 해주세요."
         
-        # Generate AI response
+        # Generate AI response with increased token limit
         ai_response = await claude_client.generate_message(
             system_prompt=system_prompt,
             user_message=user_message,
-            max_tokens=500,
-            temperature=0.7
+            max_tokens=800,  # Increased for complete responses
+            temperature=0.3  # Lower for faster, more focused responses
         )
         
         # Save to database using conversation service
@@ -120,9 +121,10 @@ class QuestionService:
         # Get template configuration
         template_config, template_id = QuestionService._get_template_config(session_id, db)
         
-        # Load knowledge base
+        # Load and compress knowledge base for faster processing
         knowledge_base_file = KNOWLEDGE_BASE_MAP.get(template_id, 'knowledge_base_project.md')
-        knowledge_base = knowledge_loader.load_knowledge_base(knowledge_base_file)
+        raw_knowledge = knowledge_loader.load_knowledge_base(knowledge_base_file)
+        knowledge_base = knowledge_loader.compress_knowledge(raw_knowledge)
         
         # Get conversation history
         history = conversation_service.get_conversation_history_as_dict(session_id, db)
@@ -159,12 +161,12 @@ class QuestionService:
 
 지금까지의 대화를 바탕으로 적절한 후속 질문을 해주세요."""
         
-        # Generate AI response with conversation history
+        # Generate AI response with conversation history (increased token limit)
         ai_response = await claude_client.generate_message_with_history(
             system_prompt=system_prompt,
             messages=history,
-            max_tokens=500,
-            temperature=0.7
+            max_tokens=600,  # Increased for complete responses
+            temperature=0.3  # Lower for faster, more focused responses
         )
         
         # Save AI response

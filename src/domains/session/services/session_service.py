@@ -69,6 +69,23 @@ class SessionService:
         )
 
     @staticmethod
+    def get_session_by_id(session_id: str, db: DBSession) -> Optional[Session]:
+        """Get session by ID, returns None if not found"""
+        session_model = db.query(SessionModel).filter(
+            SessionModel.session_id == session_id
+        ).first()
+        
+        if not session_model:
+            return None
+        
+        return Session(
+            id=session_model.id,
+            session_id=session_model.session_id,
+            template=session_model.template,
+            created_at=session_model.created_at
+        )
+
+    @staticmethod
     def get_session_template(session_id: str, db: DBSession) -> str:
         """Get template for session"""
         session = SessionService.get_session(session_id, db)

@@ -67,8 +67,9 @@ class EvaluationService:
         if not history:
             raise ValueError(f"세션 {session_id}에 대화 내역이 없습니다.")
         
-        # Load knowledge base
-        knowledge_base = knowledge_loader.load_knowledge_base('knowledge_base_project.md')
+        # Load and compress knowledge base for faster processing
+        raw_knowledge = knowledge_loader.load_knowledge_base('knowledge_base_project.md')
+        knowledge_base = knowledge_loader.compress_knowledge(raw_knowledge)
         
         # Create evaluation prompt
         system_prompt = f"""당신은 협업 및 소통 능력을 평가하는 전문 평가자입니다.
@@ -153,12 +154,12 @@ class EvaluationService:
 
 위 대화를 분석하여 참가자의 협업 역량, 커뮤니케이션 능력, 갈등 해결 능력을 평가하고 JSON으로 출력하세요."""
 
-        # Generate evaluation with Claude
+        # Generate evaluation with Claude (optimized for speed)
         ai_response = await claude_client.generate_message(
             system_prompt=system_prompt,
             user_message=user_prompt,
-            max_tokens=4000,
-            temperature=0.3
+            max_tokens=2000,  # Reduced for faster response
+            temperature=0.2   # Lower for more consistent JSON output
         )
 
         # Parse JSON response

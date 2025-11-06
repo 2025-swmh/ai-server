@@ -29,14 +29,14 @@ class Settings:
         self.API_V1_PREFIX = "/api/v1"
         
         # AI Configuration
-        self.DEFAULT_AI_MODEL = "claude-3-haiku-20240307"
-        self.DEFAULT_MAX_TOKENS = 500
-        self.DEFAULT_TEMPERATURE = 0.7
+        self.DEFAULT_AI_MODEL = "claude-3-haiku-20240307"  # Fast model for speed
+        self.DEFAULT_MAX_TOKENS = 1000  # Increased for longer responses
+        self.DEFAULT_TEMPERATURE = 0.5  # Lower temp for faster, more consistent responses
         
         # Knowledge Base
-        self.KNOWLEDGE_BASE_MAX_LENGTH = 8000
-        self.CHUNK_SIZE = 2000
-        self.CHUNK_OVERLAP = 200
+        self.KNOWLEDGE_BASE_MAX_LENGTH = 4000  # Reduced for faster processing
+        self.CHUNK_SIZE = 1500  # Smaller chunks for speed
+        self.CHUNK_OVERLAP = 100  # Reduced overlap
 
 
 # Template configurations moved from prompts.py

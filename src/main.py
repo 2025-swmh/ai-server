@@ -35,8 +35,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS middleware
@@ -57,15 +57,16 @@ app.add_exception_handler(Exception, general_exception_handler)
 # Include API routers
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
     return {
-        "status": "ok",
-        "timestamp": datetime.now().isoformat(),
+        "message": "AI Interview System API",
         "service": settings.APP_NAME,
-        "version": settings.APP_VERSION
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
+        "health": "/health"
     }
 
 # Application lifecycle events
