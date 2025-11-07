@@ -37,11 +37,9 @@ class KnowledgeLoader:
         Raises:
             KnowledgeBaseNotFoundException: When knowledge base file is not found
         """
-        # Check if it's a direct filename
         if filename_or_template.endswith('.md'):
             filename = filename_or_template
         else:
-            # Try to get from mapping
             filename = KNOWLEDGE_BASE_MAP.get(filename_or_template)
             if not filename:
                 logger.error(f"No knowledge base mapping found for template: {filename_or_template}")
@@ -81,17 +79,13 @@ class KnowledgeLoader:
 
         logger.debug(f"Compressing knowledge from {len(knowledge)} chars")
 
-        # Remove code blocks (content between ```)
         compressed = re.sub(r'```[\s\S]*?```', '[코드 예시]', knowledge)
         
-        # Remove excessive whitespace
         compressed = re.sub(r'\n\s*\n', '\n', compressed)
         compressed = re.sub(r' +', ' ', compressed)
         
-        # Remove unnecessary characters
         compressed = compressed.strip()
 
-        # Limit to maximum length
         if len(compressed) > max_length:
             compressed = compressed[:max_length]
             logger.warning(f"Knowledge truncated to {max_length} chars")
@@ -129,14 +123,11 @@ class KnowledgeLoader:
         while start < len(knowledge):
             end = start + chunk_size
             
-            # Try to split at natural boundaries
             if end < len(knowledge):
-                # Find nearest newline
                 newline_pos = knowledge.rfind('\n', start, end)
                 if newline_pos > start:
                     end = newline_pos
                 else:
-                    # Find nearest space
                     space_pos = knowledge.rfind(' ', start, end)
                     if space_pos > start:
                         end = space_pos
@@ -170,10 +161,8 @@ class KnowledgeLoader:
             True if successful, False otherwise
         """
         try:
-            # Load the knowledge base content
             content = self.load_knowledge_base(template_id)
             
-            # Store in vector database
             metadata = {
                 "template_id": template_id,
                 "source_file": KNOWLEDGE_BASE_MAP.get(template_id, f"{template_id}.md"),
@@ -211,14 +200,12 @@ class KnowledgeLoader:
             Relevant context from knowledge base
         """
         try:
-            # Ensure knowledge base is initialized in vector DB
             if not self._is_knowledge_base_initialized(template_id):
                 logger.info(f"Initializing knowledge base vectors for {template_id}")
                 if not self.initialize_knowledge_base_vectors(template_id):
                     logger.warning(f"Failed to initialize {template_id}, falling back to full content")
                     return self._fallback_to_full_content(template_id, max_tokens)
             
-            # Get relevant context using semantic search
             context = self.vector_db.get_relevant_context(
                 knowledge_base_id=template_id,
                 query=query,
@@ -250,7 +237,6 @@ class KnowledgeLoader:
         try:
             content = self.load_knowledge_base(template_id)
             
-            # Estimate max characters from tokens (rough: 1 token ≈ 4 chars)
             max_chars = max_tokens * 4
             
             compressed = self.compress_knowledge(content, max_length=max_chars)
@@ -313,5 +299,4 @@ class KnowledgeLoader:
         return results
 
 
-# Singleton instance
 knowledge_loader = KnowledgeLoader()

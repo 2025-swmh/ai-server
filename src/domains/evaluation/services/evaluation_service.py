@@ -27,17 +27,14 @@ class EvaluationService:
     @staticmethod
     def _save_evaluation(evaluation_data: Dict, db: Session) -> EvaluationModel:
         """Save evaluation result to database"""
-        # Extract individual fields from JSON data
         collaboration_profile = evaluation_data.get("collaboration_profile", {})
         analysis_scores = collaboration_profile.get("analysis_scores", {})
         
-        # Check if evaluation already exists
         existing = db.query(EvaluationModel).filter(
             EvaluationModel.session_id == evaluation_data["session_id"]
         ).first()
         
         if existing:
-            # Update existing evaluation
             existing.title = evaluation_data.get("title")
             existing.interview_type = evaluation_data.get("template_type")
             existing.type_korean = collaboration_profile.get("type_korean")
@@ -47,7 +44,6 @@ class EvaluationService:
             existing.evaluation_json = json.dumps(evaluation_data, ensure_ascii=False)
             evaluation_obj = existing
         else:
-            # Create new evaluation
             evaluation_obj = EvaluationModel(
                 session_id=evaluation_data["session_id"],
                 title=evaluation_data.get("title"),
@@ -68,23 +64,19 @@ class EvaluationService:
     async def generate_cooperation_evaluation(session_id: str, db: Session) -> Dict:
         """Generate cooperation evaluation based on conversation history"""
         
-        # Get session info
         session_domain = session_service.get_session(session_id, db)
         
         if session_domain.template != 'cooperation':
             raise ValueError(f"협업 평가는 cooperation 템플릿에서만 사용 가능합니다. (현재: {session_domain.template})")
         
-        # Get conversation history
         history = EvaluationService._get_conversation_history(session_id, db)
         
         if not history:
             raise ValueError(f"세션 {session_id}에 대화 내역이 없습니다.")
         
-        # Load and compress knowledge base for faster processing
         raw_knowledge = knowledge_loader.load_knowledge_base('knowledge_base_project.md')
         knowledge_base = knowledge_loader.compress_knowledge(raw_knowledge)
         
-        # Create evaluation prompt
         system_prompt = f"""당신은 협업 및 소통 능력을 평가하는 전문 평가자입니다.
 
 **평가 기준 지식 베이스:**
@@ -154,7 +146,6 @@ class EvaluationService:
 - 시나리오 기반 협업 시뮬레이션에서 나타난 구체적인 행동을 평가하세요
 - JSON 형식을 정확히 지켜주세요"""
 
-        # Convert conversation to text
         conversation_text = "\n\n".join([
             f"{'AI 면접관' if msg['role'] == 'assistant' else '참가자'}: {msg['content']}"
             for msg in history
@@ -167,15 +158,13 @@ class EvaluationService:
 
 위 대화를 분석하여 참가자의 협업 역량, 커뮤니케이션 능력, 갈등 해결 능력을 평가하고 JSON으로 출력하세요."""
 
-        # Generate evaluation with Claude (optimized for speed)
         ai_response = await claude_client.generate_message(
             system_prompt=system_prompt,
             user_message=user_prompt,
-            max_tokens=2000,  # Reduced for faster response
-            temperature=0.2   # Lower for more consistent JSON output
+            max_tokens=2000,
+            temperature=0.2
         )
 
-        # Parse JSON response
         try:
             json_text = ai_response.strip()
             if json_text.startswith("```json"):
@@ -186,7 +175,6 @@ class EvaluationService:
             repaired_json = repair_json(json_text)
             evaluation_result = json.loads(repaired_json)
             
-            # Save evaluation to database
             EvaluationService._save_evaluation(evaluation_result, db)
             
             return evaluation_result
@@ -198,7 +186,6 @@ class EvaluationService:
     async def generate_evaluation(session_id: str, db: Session) -> Dict:
         """Generate evaluation based on template type"""
         
-        # Get session to determine template
         session_domain = session_service.get_session(session_id, db)
         template = session_domain.template
         

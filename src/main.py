@@ -9,7 +9,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from datetime import datetime
 import logging
 
-# Import core components
 from src.core.config.settings import settings
 from src.core.exceptions.handlers import (
     InterviewSystemException,
@@ -19,10 +18,8 @@ from src.core.exceptions.handlers import (
     general_exception_handler
 )
 
-# Import API routers
 from src.api.v1.router import api_router
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -30,7 +27,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -39,25 +35,21 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify allowed origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Exception handlers
 app.add_exception_handler(InterviewSystemException, interview_system_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
-# Include API routers
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
-# Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -69,7 +61,6 @@ async def root():
         "health": "/health"
     }
 
-# Application lifecycle events
 @app.on_event("startup")
 async def startup_event():
     """Application startup event"""

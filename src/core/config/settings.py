@@ -8,19 +8,15 @@ load_dotenv()
 class Settings:
     
     def __init__(self):
-        # Database
         self.DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./interview.db")
         
-        # AI Services
         self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
         
-        # Application
         self.APP_NAME = "AI Interview System"
         self.APP_VERSION = "1.0.0"
         self.DEBUG = os.getenv("DEBUG", "False").lower() == "true"
         
-        # API
         self.API_V1_PREFIX = "/api/v1"
         
         self.DEFAULT_AI_MODEL = "claude-3-haiku-20240307"
@@ -31,8 +27,7 @@ class Settings:
         self.CHUNK_SIZE = 1500
         self.CHUNK_OVERLAP = 100
         
-        # RAG and Embedding settings - upgraded to larger model for better performance
-        self.EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")  # Can also use "text-embedding-3-large" or "BAAI/bge-m3"
+        self.EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
         self.USE_OPENAI_EMBEDDINGS = os.getenv("USE_OPENAI_EMBEDDINGS", "false").lower() == "true"
 
 

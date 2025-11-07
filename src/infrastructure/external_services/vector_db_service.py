@@ -26,11 +26,9 @@ class VectorDBService:
 
     def __init__(self):
         """Initialize ChromaDB client and embedding model"""
-        # Create data directory for ChromaDB
         self.data_path = Path(__file__).parent.parent.parent.parent / "data" / "chromadb"
         self.data_path.mkdir(parents=True, exist_ok=True)
         
-        # Initialize ChromaDB client with persistent storage
         self.client = chromadb.PersistentClient(
             path=str(self.data_path),
             settings=Settings(
@@ -39,9 +37,6 @@ class VectorDBService:
             )
         )
         
-        # Initialize embedding model - using high-performance multilingual model
-        # BGE-M3 is currently one of the best multilingual embedding models for Korean/English
-        # Also supports OpenAI embeddings if configured
         self.embedding_model_name = settings.EMBEDDING_MODEL
         self.use_openai_embeddings = settings.USE_OPENAI_EMBEDDINGS
         
@@ -49,10 +44,9 @@ class VectorDBService:
             self.embedding_model = SentenceTransformer(self.embedding_model_name)
             logger.info(f"Initialized SentenceTransformer model: {self.embedding_model_name}")
         else:
-            self.embedding_model = None  # Will use OpenAI API directly
+            self.embedding_model = None
             logger.info(f"Configured to use OpenAI embeddings: {self.embedding_model_name}")
         
-        # Initialize tokenizer for token counting
         try:
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
         except Exception:
@@ -96,14 +90,13 @@ class VectorDBService:
         if self.tokenizer:
             return len(self.tokenizer.encode(text))
         else:
-            # Rough estimation: 1 token ≈ 4 characters
             return len(text) // 4
 
     def chunk_text_by_tokens(
         self, 
         text: str, 
-        max_tokens: int = 300,  # Smaller chunks for better semantic coherence
-        overlap_tokens: int = 75  # More overlap for context preservation
+        max_tokens: int = 300,
+        overlap_tokens: int = 75
     ) -> List[str]:
         """
         Chunk text by token count with overlap
@@ -117,18 +110,14 @@ class VectorDBService:
             List of text chunks
         """
         if self.tokenizer is None:
-            # Fallback to character-based chunking
             max_chars = max_tokens * 4
             overlap_chars = overlap_tokens * 4
             return self._chunk_text_by_chars(text, max_chars, overlap_chars)
 
-        # Split text into semantic units (headers, paragraphs, sentences)
-        # First split by double newlines (paragraphs), then by single newlines
         paragraphs = text.split('\n\n')
         sentences = []
         for para in paragraphs:
             if para.strip():
-                # Keep paragraph structure but also split by lines
                 lines = para.split('\n')
                 sentences.extend([line.strip() for line in lines if line.strip()])
         chunks = []
@@ -142,12 +131,10 @@ class VectorDBService:
                 
             sentence_tokens = len(self.tokenizer.encode(sentence))
             
-            # If adding this sentence exceeds max tokens, save current chunk
             if current_tokens + sentence_tokens > max_tokens and current_chunk:
                 chunk_text = '\n'.join(current_chunk)
                 chunks.append(chunk_text)
                 
-                # Start new chunk with overlap
                 overlap_sentences = []
                 overlap_tokens_count = 0
                 
@@ -165,7 +152,6 @@ class VectorDBService:
                 current_chunk.append(sentence)
                 current_tokens += sentence_tokens
 
-        # Add final chunk
         if current_chunk:
             chunk_text = '\n'.join(current_chunk)
             chunks.append(chunk_text)
@@ -182,14 +168,12 @@ class VectorDBService:
             end = start + max_chars
             
             if end < len(text):
-                # Find nearest sentence boundary
                 for boundary in ['. ', '.\n', '? ', '! ']:
                     boundary_pos = text.rfind(boundary, start, end)
                     if boundary_pos > start:
                         end = boundary_pos + len(boundary)
                         break
                 else:
-                    # Find nearest word boundary
                     space_pos = text.rfind(' ', start, end)
                     if space_pos > start:
                         end = space_pos
@@ -219,21 +203,18 @@ class VectorDBService:
         collection_name = f"knowledge_{knowledge_base_id}"
         collection = self.get_or_create_collection(collection_name)
         
-        # Clear existing documents in collection
         try:
             collection.delete()
             collection = self.get_or_create_collection(collection_name)
         except Exception as e:
             logger.warning(f"Could not clear collection {collection_name}: {e}")
         
-        # Chunk the content with optimized parameters for better semantic coherence
         chunks = self.chunk_text_by_tokens(content, max_tokens=300, overlap_tokens=75)
         
         if not chunks:
             logger.warning(f"No chunks created for knowledge base {knowledge_base_id}")
             return
         
-        # Prepare documents for storage
         documents = []
         metadatas = []
         ids = []
@@ -256,7 +237,6 @@ class VectorDBService:
             metadatas.append(chunk_metadata)
             ids.append(f"{knowledge_base_id}_chunk_{i}")
         
-        # Store in ChromaDB
         try:
             collection.add(
                 documents=documents,
@@ -270,10 +250,8 @@ class VectorDBService:
 
     def _preprocess_query(self, query: str) -> str:
         """Preprocess and expand query for better semantic matching"""
-        # Remove unnecessary words and normalize
         query = query.strip()
         
-        # Add related terms for common concepts
         expansions = {
             'RESTful API': 'RESTful API REST 웹 서비스 HTTP 엔드포인트',
             'API 설계': 'API 설계 디자인 아키텍처 구조 원칙',
@@ -318,7 +296,6 @@ class VectorDBService:
             logger.error(f"Collection {collection_name} not found: {e}")
             return []
         
-        # Preprocess query for better matching
         enhanced_query = self._preprocess_query(query)
         
         try:
@@ -334,10 +311,7 @@ class VectorDBService:
                 results['metadatas'][0], 
                 results['distances'][0]
             )):
-                # Convert distance to similarity (ChromaDB uses cosine distance)
-                # Apply sigmoid transformation to enhance high similarity scores
                 raw_similarity = 1 - distance
-                # Sigmoid enhancement: amplifies scores above 0.3 and dampens below
                 enhanced_similarity = 1 / (1 + math.exp(-10 * (raw_similarity - 0.5)))
                 similarity = max(raw_similarity, enhanced_similarity * 0.7 + raw_similarity * 0.3)
                 
@@ -383,7 +357,6 @@ class VectorDBService:
             logger.warning(f"No relevant chunks found for query in {knowledge_base_id}")
             return ""
         
-        # Build context from most similar chunks
         context_parts = []
         current_tokens = 0
         
@@ -424,5 +397,4 @@ class VectorDBService:
             return False
 
 
-# Singleton instance
 vector_db_service = VectorDBService()

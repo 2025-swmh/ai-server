@@ -40,24 +40,19 @@ class QuestionService:
     ) -> Dict:
         """Generate the first question for an interview session"""
         
-        # Get template configuration
         template_config, template_id = QuestionService._get_template_config(session_id, db)
         
-        # Load knowledge base using RAG for better context relevance
         initial_query = f"면접 시작 {template_id} 질문 생성"
         if scenario:
             initial_query += f" 시나리오: {scenario}"
         
-        # Get relevant context using RAG
         knowledge_base = knowledge_loader.get_relevant_context_rag(
             template_id=template_id,
             query=initial_query,
-            max_tokens=1500  # More context for first question
+            max_tokens=1500
         )
         
-        # Create system prompt
         if template_id == 'cooperation' and scenario:
-            # Special handling for cooperation template with scenario
             system_prompt = f"""당신은 협업 상황 시뮬레이션의 진행자입니다.
 
 **시뮬레이션 목표**: 실제 협업 상황을 재현하여 사용자가 직접 그 상황에 참여하도록 합니다.
@@ -83,7 +78,6 @@ class QuestionService:
             
             user_message = f"주어진 시나리오 '{scenario}'를 바탕으로 협업 시뮬레이션을 시작하겠습니다. 인사와 함께 첫 번째 상황을 제시하고 질문해주세요."
         else:
-            # Standard template handling
             system_prompt = f"""당신은 {template_config['role']}입니다.
 
 **상황**: {template_config['situation']}  
@@ -96,15 +90,13 @@ class QuestionService:
             
             user_message = "면접을 시작하겠습니다. 인사와 함께 첫 질문을 해주세요."
         
-        # Generate AI response with increased token limit
         ai_response = await claude_client.generate_message(
             system_prompt=system_prompt,
             user_message=user_message,
-            max_tokens=800,  # Increased for complete responses
-            temperature=0.3  # Lower for faster, more focused responses
+            max_tokens=800,
+            temperature=0.3
         )
         
-        # Save to database using conversation service
         conversation_service.save_message(session_id, Role.ASSISTANT, ai_response, db)
         
         return {
@@ -122,26 +114,20 @@ class QuestionService:
     ) -> Dict:
         """Generate AI response to user message"""
         
-        # Save user message
         conversation_service.save_message(session_id, Role.USER, user_message, db)
         
-        # Get template configuration
         template_config, template_id = QuestionService._get_template_config(session_id, db)
         
-        # Load knowledge base using RAG with user's message as context
         search_query = f"면접 질문 {template_id} {user_message}"
         
-        # Get relevant context using RAG
         knowledge_base = knowledge_loader.get_relevant_context_rag(
             template_id=template_id,
             query=search_query,
-            max_tokens=1200  # Appropriate context for response
+            max_tokens=1200
         )
         
-        # Get conversation history
         history = conversation_service.get_conversation_history_as_dict(session_id, db)
         
-        # Create system prompt
         if template_id == 'cooperation':
             system_prompt = f"""당신은 협업 상황 시뮬레이션의 진행자입니다.
 
@@ -173,15 +159,13 @@ class QuestionService:
 
 지금까지의 대화를 바탕으로 적절한 후속 질문을 해주세요."""
         
-        # Generate AI response with conversation history (increased token limit)
         ai_response = await claude_client.generate_message_with_history(
             system_prompt=system_prompt,
             messages=history,
-            max_tokens=600,  # Increased for complete responses
-            temperature=0.3  # Lower for faster, more focused responses
+            max_tokens=600,
+            temperature=0.3
         )
         
-        # Save AI response
         conversation_service.save_message(session_id, Role.ASSISTANT, ai_response, db)
         
         return {
